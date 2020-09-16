@@ -9,6 +9,7 @@ from os import path
 
 # VIRAL LOAD FUNCTIONS
 
+
 def VL(t,T3,TP,YP,T6):
     '''
     VL(t,T3,TP,YP,T6)
@@ -23,6 +24,7 @@ def VL(t,T3,TP,YP,T6):
     if t < TP:
         return (t-T3)*(YP-3)/(TP-T3)+3
     return np.max([(t-TP)*(6-YP)/(T6-TP)+YP,0])
+
     
 def get_trajectory(is_symptomatic=False,full=False):
     '''
@@ -47,6 +49,7 @@ def get_trajectory(is_symptomatic=False,full=False):
     else:
         return get_asymptomatic_trajectory(full=full)
 
+
 def get_symptomatic_trajectory(full=False):
     # Draw control points. 
     # Truncate so that max of t_peak is 3.
@@ -65,6 +68,7 @@ def get_symptomatic_trajectory(full=False):
         vfine = np.array([VL(x,t_3,t_peak+t_3,v_peak,t_6+t_3+t_peak+t_symptoms) for x in tfine])
         return v,vfine,tfine,t_3,t_peak,v_peak,t_6,t_symptoms
     return v,int(np.round(t_symptoms+t_3+t_peak))
+
 
 def get_asymptomatic_trajectory(full=False):    
     # Draw control points. 
@@ -86,6 +90,7 @@ def get_asymptomatic_trajectory(full=False):
 
 # INFECTIOUSNESS FUNCTIONS
 
+
 def proportional(v,cutoff=6):
     '''
     proportional(v,cutoff=6)
@@ -98,6 +103,7 @@ def proportional(v,cutoff=6):
         x = 10**(v-cutoff)
         return x
 
+
 def threshold(v,cutoff=6):
     '''
     threshold(v,cutoff=6)
@@ -108,6 +114,7 @@ def threshold(v,cutoff=6):
         return 0
     else:
         return 1
+
 
 def logproportional(v,cutoff=6):
     '''
@@ -121,9 +128,11 @@ def logproportional(v,cutoff=6):
     else:
         return v-cutoff
 
+
 # INFECTIOUSNESS REMOVED SAMPLING
 
-def infectiousness_removed_indiv(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6):
+
+def infectiousness_removed_indiv(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6,se=1):
     '''
     infectiousness_removed_indiv_symptomatic(D,L,inf,dt=0,cutoff=6)
         D: days between tests
@@ -132,24 +141,27 @@ def infectiousness_removed_indiv(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6):
         asymptomatic: fraction of individuals assumed be asymptomatic
         dt: fixed time delay to return results
         cutoff: the minimum value of log10 viral load for infectiousness. (Manuscript default: 6)
+        se: per-test sensitivity, i.e. probabilty that the test doesn't just fail due to e.g. bad sampling
 
     Returns the amount of infectiousness (arbitrary units) removed by testing, symptoms, and total
     for an INDIVIDUAL trajectory drawn randomly from the model, probabilistically symptomatic or asymptomatic.
     '''
     if np.random.random()<asymptomatic:
-        a,b,c = infectiousness_removed_indiv_asymptomatic(D,L,inf,dt=dt,cutoff=cutoff)
+        a,b,c = infectiousness_removed_indiv_asymptomatic(D,L,inf,dt=dt,cutoff=cutoff,se=se)
     else:
-        a,b,c = infectiousness_removed_indiv_symptomatic(D,L,inf,dt=dt,cutoff=cutoff)
+        a,b,c = infectiousness_removed_indiv_symptomatic(D,L,inf,dt=dt,cutoff=cutoff,se=se)
     return a,b,c
 
-def infectiousness_removed_indiv_symptomatic(D,L,inf,dt=0,cutoff=6):
+
+def infectiousness_removed_indiv_symptomatic(D,L,inf,dt=0,cutoff=6,se=1):
     '''
-    infectiousness_removed_indiv_symptomatic(D,L,inf,dt=0,cutoff=6)
+    infectiousness_removed_indiv_symptomatic(D,L,inf,dt=0,cutoff=6,se=1)
         D: days between tests
         L: log10 limit of detection of test (PCR: 3, RT-LAMP: 5)
         inf: a function handle {proportional,logproportional,threshold}
         dt: fixed time delay to return results
         cutoff: the minimum value of log10 viral load for infectiousness. (Manuscript default: 6)
+        se: per-test sensitivity, i.e. probabilty that the test doesn't just fail due to e.g. bad sampling
 
     Returns the amount of infectiousness (arbitrary units) removed by testing, symptoms, and total
     for an INDIVIDUAL symptomatic trajectory drawn randomly from the model.
@@ -162,6 +174,7 @@ def infectiousness_removed_indiv_symptomatic(D,L,inf,dt=0,cutoff=6):
     removed_by_symptoms = 0
 
     t_test = np.arange(phase,28,D)
+    t_test = np.sort(np.random.choice(t_test,size=np.random.binomial(len(t_test),se),replace=False))
     t_pos = t_test[np.where(V[t_test]>L)[0]]
     if len(t_pos)==0:
         removed_by_testing = 0
@@ -184,14 +197,16 @@ def infectiousness_removed_indiv_symptomatic(D,L,inf,dt=0,cutoff=6):
             removed_by_symptoms = np.sum(I[t_symptoms:])
     return removed_by_testing,removed_by_symptoms,total
 
-def infectiousness_removed_indiv_asymptomatic(D,L,inf,dt=0,cutoff=6):
+
+def infectiousness_removed_indiv_asymptomatic(D,L,inf,dt=0,cutoff=6,se=1):
     '''
-    infectiousness_removed_indiv_asymptomatic(D,L,inf,dt=0,cutoff=6)
+    infectiousness_removed_indiv_asymptomatic(D,L,inf,dt=0,cutoff=6,se=1)
         D: days between tests
         L: log10 limit of detection of test (PCR: 3, RT-LAMP: 5)
         inf: a function handle {proportional,logproportional,threshold}
         dt: fixed time delay to return results
         cutoff: the minimum value of log10 viral load for infectiousness. (Manuscript default: 6)
+        se: per-test sensitivity, i.e. probabilty that the test doesn't just fail due to e.g. bad sampling
 
     Returns the amount of infectiousness (arbitrary units) removed by testing, symptoms, and total
     for an INDIVIDUAL asymptomatic trajectory drawn randomly from the model.
@@ -204,6 +219,7 @@ def infectiousness_removed_indiv_asymptomatic(D,L,inf,dt=0,cutoff=6):
     removed_by_symptoms = 0
 
     t_test = np.arange(phase,28,D)
+    t_test = np.sort(np.random.choice(t_test,size=np.random.binomial(len(t_test),se),replace=False))
     t_pos = t_test[np.where(V[t_test]>L)[0]]
     if len(t_pos)==0:
         removed_by_testing = 0
@@ -213,9 +229,10 @@ def infectiousness_removed_indiv_asymptomatic(D,L,inf,dt=0,cutoff=6):
         removed_by_symptoms = 0
     return removed_by_testing,removed_by_symptoms,total
 
-def infectiousness_removed_pop(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6,n_samples = 1000):
-    '''
-    infectiousness_removed_pop(D,L,inf,asymptomatic,dt=0,cutoff=6,n_samples=1000)
+
+def infectiousness_removed_pop(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6,n_samples=1000,se=1):
+        '''
+    infectiousness_removed_pop(D,L,inf,asymptomatic,dt=0,cutoff=6,n_samples=1000,se=1)
         D: days between tests
         L: log10 limit of detection of test (PCR: 3, RT-LAMP: 5)
         inf: a function handle {proportional,logproportional,threshold}
@@ -223,21 +240,23 @@ def infectiousness_removed_pop(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6,n_samples
         dt: fixed time delay to return results
         cutoff: the minimum value of log10 viral load for infectiousness. (Manuscript default: 6)
         n_samples: the number of individuals to sample in computing the population
+        se: per-test sensitivity, i.e. probabilty that the test doesn't just fail due to e.g. bad sampling
 
     Returns the average amount of infectiousness (arbitrary units) removed by testing, symptoms, and total
     for n_samples individual trajectories drawn randomly from the model, with a stochastic proportion asymptomatic.
     '''
     test,self,total = 0,0,0
     for i in range(n_samples):
-        a,b,c = infectiousness_removed_indiv(D,L,inf,asymptomatic=asymptomatic,dt=dt,cutoff=cutoff)
+        a,b,c = infectiousness_removed_indiv(D,L,inf,asymptomatic=asymptomatic,dt=dt,cutoff=cutoff,se=se)
         test+=a
         self+=b
         total+=c
     return test/n_samples,self/n_samples,total/n_samples
 
-def get_R_reduction_factor(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6,n_samples=10000):
+
+def get_R_reduction_factor(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6,n_samples=10000,se=1):
     '''
-    get_R_reduction_factor(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6,n_samples=10000)
+    get_R_reduction_factor(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6,n_samples=10000,se=1)
         D: days between tests
         L: log10 limit of detection of test (PCR: 3, RT-LAMP: 5)
         inf: a function handle {proportional,logproportional,threshold}
@@ -245,17 +264,20 @@ def get_R_reduction_factor(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6,n_samples=100
         dt: fixed time delay to return results
         cutoff: the minimum value of log10 viral load for infectiousness. (Manuscript default: 6)
         n_samples: the number of individuals to sample in computing the population
+        se: per-test sensitivity, i.e. probabilty that the test doesn't just fail due to e.g. bad sampling
 
     Returns the factor by which R is likely to be reduced via a particular policy.
     '''
     pol,no_pol = 0,0
     for i in range(n_samples):
-        a,b,c = infectiousness_removed_indiv(D,L,inf,asymptomatic=asymptomatic,dt=dt,cutoff=cutoff)
+        a,b,c = infectiousness_removed_indiv(D,L,inf,asymptomatic=asymptomatic,dt=dt,cutoff=cutoff,se=se)
         no_pol += (c-b)
         pol += (c-(a+b))
     return pol/no_pol
 
+
 # SEIR FULLY MIXED MODEL
+
 
 def compute_factor_to_calibrate_R0_SQ(infectiousness,asymptomatic,cutoff):
     '''
@@ -279,6 +301,7 @@ def compute_factor_to_calibrate_R0_SQ(infectiousness,asymptomatic,cutoff):
             total_infectiousness += np.sum(IN[:t_symptoms])
     mean_infectiousness = total_infectiousness/n_draws
     return mean_infectiousness
+
 
 def get_Reff(N,D,L,infectiousness_function,asymptomatic=0.65,results_delay=0,R0=2.5,cutoff=6):
     '''
@@ -308,6 +331,7 @@ def get_Reff(N,D,L,infectiousness_function,asymptomatic=0.65,results_delay=0,R0=
         calibration_mode=True
         )
     return Iint/I_init
+
 
 def SEIRsimulation(N,external_rate,D,L,infectiousness_function,asymptomatic=0.65,results_delay=0,R0=2.5,cutoff=6,I_init=0,tmax=365,calibration_mode=False):
     '''
