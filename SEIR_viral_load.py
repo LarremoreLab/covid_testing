@@ -231,7 +231,7 @@ def infectiousness_removed_indiv_asymptomatic(D,L,inf,dt=0,cutoff=6,se=1):
 
 
 def infectiousness_removed_pop(D,L,inf,asymptomatic=0.65,dt=0,cutoff=6,n_samples=1000,se=1):
-        '''
+    '''
     infectiousness_removed_pop(D,L,inf,asymptomatic,dt=0,cutoff=6,n_samples=1000,se=1)
         D: days between tests
         L: log10 limit of detection of test (PCR: 3, RT-LAMP: 5)
